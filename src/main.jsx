@@ -28,5 +28,3 @@ const defaultData = {
   annual: {},
   notes: {}
 };
-
-const
