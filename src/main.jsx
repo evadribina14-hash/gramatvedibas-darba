@@ -2,811 +2,2056 @@ import React, { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import * as XLSX from "xlsx";
 import {
-  Clock3,
-  Table2,
+  BriefcaseBusiness,
   CalendarDays,
-  BookOpen,
-  ClipboardCheck,
-  Bell,
-  Plus,
-  Play,
-  Square,
-  Pause,
-  Download,
   Check,
-  Trash2,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  ClipboardCheck,
+  Clock3,
+  Download,
+  FileText,
+  Info,
+  Plus,
   Save,
+  Settings2,
+  Trash2,
+  Users,
+  X,
 } from "lucide-react";
 import "./styles.css";
 
-const STORAGE = "gramatvedibas-darba-v2";
+const STORAGE = "gramatvedibas-darba-v3";
+
+const uid = (prefix = "id") =>
+  `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+const todayISO = () => new Date().toISOString().slice(0, 10);
+
+const emptyClient = () => ({
+  id: uid("client"),
+  name: "",
+  vatPeriod: "monthly",
+});
+
+const emptyJob = () => ({
+  id: uid("job"),
+  name: "",
+});
+
+const defaultInfo = [
+  {
+    id: "iin",
+    category: "Nodokļu likmes",
+    title: "IIN",
+    value:
+      "2026. gadā IIN likme 25,5% gada ienākuma daļai līdz 105 300 EUR. Virs 105 300 EUR – 33%. Papildu 3% piemēro gada ienākumu pārsniegumam virs 200 000 EUR.",
+    year: "2026",
+  },
+  {
+    id: "neapliekamais",
+    category: "Nodokļu likmes",
+    title: "Neapliekamais minimums",
+    value: "2026. gadā – 550 EUR mēnesī.",
+    year: "2026",
+  },
+  {
+    id: "apgādājamais",
+    category: "Nodokļu likmes",
+    title: "Atvieglojums par apgādājamo",
+    value: "250 EUR mēnesī par vienu apgādājamo.",
+    year: "2026",
+  },
+  {
+    id: "pensionars",
+    category: "Nodokļu likmes",
+    title: "Pensionāra neapliekamais minimums",
+    value: "1000 EUR mēnesī jeb 12 000 EUR gadā.",
+    year: "2026",
+  },
+  {
+    id: "vsao",
+    category: "Nodokļu likmes",
+    title: "VSAOI – vispārējā likme",
+    value:
+      "Darba ņēmējs 10,50%. Darba devējs 23,59%. Kopā 34,09%.",
+    year: "2026",
+  },
+  {
+    id: "vsao-pensionars",
+    category: "Nodokļu likmes",
+    title: "VSAOI – pensionārs",
+    value:
+      "Darba ņēmējs 9,25%. Darba devējs 20,77%. Kopā 30,02%.",
+    year: "2026",
+  },
+  {
+    id: "pvn",
+    category: "PVN",
+    title: "PVN standarta likme",
+    value: "21%.",
+    year: "2026",
+  },
+  {
+    id: "pvn-reg",
+    category: "PVN",
+    title: "PVN reģistrācijas slieksnis",
+    value: "50 000 EUR.",
+    year: "2026",
+  },
+  {
+    id: "pvn-eu",
+    category: "PVN",
+    title: "ES preču iegādes slieksnis",
+    value: "10 000 EUR.",
+    year: "2026",
+  },
+  {
+    id: "uznemumu",
+    category: "Uzņēmumi",
+    title: "Mikrosabiedrība",
+    value:
+      "Bilances kopsumma līdz 450 000 EUR; neto apgrozījums līdz 900 000 EUR; vidējais darbinieku skaits līdz 10.",
+    year: "2026",
+  },
+  {
+    id: "uznemumu-small",
+    category: "Uzņēmumi",
+    title: "Maza sabiedrība",
+    value:
+      "Bilances kopsumma līdz 5 000 000 EUR; neto apgrozījums līdz 10 000 000 EUR; vidējais darbinieku skaits līdz 50.",
+    year: "2026",
+  },
+  {
+    id: "uznemumu-medium",
+    category: "Uzņēmumi",
+    title: "Vidēja sabiedrība",
+    value:
+      "Bilances kopsumma līdz 25 000 000 EUR; neto apgrozījums līdz 50 000 000 EUR; vidējais darbinieku skaits līdz 250.",
+    year: "2026",
+  },
+  {
+    id: "komandejumi",
+    category: "Komandējumi",
+    title: "Komandējumu dienas naudas",
+    value:
+      "Latvijas teritorijā dienas naudas norma – 8 EUR. Ārvalstu normas jāskatās pēc konkrētās valsts.",
+    year: "2026",
+  },
+  {
+    id: "darba-nem",
+    category: "Darba ņēmēji",
+    title: "Ziņas par darba ņēmējiem",
+    value:
+      "Darba ņēmēju ziņas iesniedzamas atbilstoši VID prasībām un MK noteikumiem Nr. 827.",
+    year: "2026",
+  },
+  {
+    id: "pamatl",
+    category: "Grāmatvedība",
+    title: "Pamatlīdzekļi",
+    value:
+      "Pārbaudīt iegādi, nodošanu ekspluatācijā, inventāra numurus, nolietojumu, atlikumus un inventarizāciju.",
+    year: "2026",
+  },
+  {
+    id: "reprezentacija",
+    category: "Grāmatvedība",
+    title: "Reprezentācijas izdevumi",
+    value:
+      "Pārbaudīt dokumentus, izdevumu ekonomisko būtību un nodokļu piemērošanu.",
+    year: "2026",
+  },
+];
+
+const standardAnnualTasks = [
+  {
+    group: "Bilance un konti",
+    tasks: [
+      "2310 atlikums pārbaudīts",
+      "2310 pareizā pusē",
+      "2380 atlikums pārbaudīts",
+      "Bankas atlikums pārbaudīts",
+      "Kases atlikums pārbaudīts",
+    ],
+  },
+  {
+    group: "Debitori un kreditori",
+    tasks: [
+      "Nosūtīti salīdzināšanas akti",
+      "Saņemti salīdzināšanas akti",
+      "Debitoru atlikumi pārbaudīti",
+      "Kreditoru atlikumi pārbaudīti",
+    ],
+  },
+  {
+    group: "Pamatlīdzekļi",
+    tasks: [
+      "Veikta pamatlīdzekļu inventarizācija",
+      "Pamatlīdzekļu atlikumi pārbaudīti",
+      "Nolietojums pārbaudīts",
+    ],
+  },
+  {
+    group: "Ieņēmumi un izdevumi",
+    tasks: [
+      "Ieņēmumi pārbaudīti",
+      "Izdevumi pārbaudīti",
+      "Uzkrājumi pārbaudīti",
+    ],
+  },
+];
+
+const defaultReportTypes = [
+  {
+    id: "vat",
+    name: "PVN deklarācija",
+    period: "monthly",
+    dueDay: 20,
+    builtIn: true,
+  },
+  {
+    id: "ddz",
+    name: "Darba devēja ziņojums",
+    period: "monthly",
+    dueDay: 17,
+    builtIn: true,
+  },
+  {
+    id: "uin",
+    name: "UIN deklarācija",
+    period: "monthly",
+    dueDay: 20,
+    builtIn: true,
+  },
+];
 
 const defaultData = {
   clients: [
-    { id: "c1", name: "SIA ABC", vat: "monthly" },
-    { id: "c2", name: "SIA XYZ", vat: "quarterly" },
-    { id: "c3", name: "IK Anna", vat: "none" },
+    { id: "client-1", name: "Mans uzņēmums", vatPeriod: "monthly" },
   ],
   jobs: [
-    "Grāmatojumi",
-    "PVN deklarācija",
-    "Algu aprēķins",
-    "Bankas kontrole",
-    "Salīdzināšanas akti",
+    { id: "job-1", name: "Ikdienas grāmatvedība" },
+    { id: "job-2", name: "PVN deklarācija" },
+    { id: "job-3", name: "Darba devēja ziņojums" },
   ],
   entries: [],
-  reports: {},
+  notes: [],
+  info: defaultInfo,
   annual: {},
-  notes: {},
+  reportTypes: defaultReportTypes,
+  reportStatuses: {},
 };
 
 function loadData() {
   try {
-    const saved = localStorage.getItem(STORAGE);
-    return saved ? JSON.parse(saved) : defaultData;
+    const saved =
+      localStorage.getItem(STORAGE) ||
+      localStorage.getItem("gramatvedibas-darba-v1") ||
+      localStorage.getItem("gramatvedibas-darba-v2");
+
+    if (!saved) return defaultData;
+
+    const parsed = JSON.parse(saved);
+
+    return {
+      ...defaultData,
+      ...parsed,
+      clients: parsed.clients || defaultData.clients,
+      jobs: parsed.jobs || defaultData.jobs,
+      entries: parsed.entries || [],
+      notes: parsed.notes || [],
+      info: parsed.info || defaultInfo,
+      annual: parsed.annual || {},
+      reportTypes: parsed.reportTypes || defaultReportTypes,
+      reportStatuses: parsed.reportStatuses || {},
+    };
   } catch {
     return defaultData;
   }
 }
 
+function formatDate(date) {
+  if (!date) return "";
+  const d = new Date(`${date}T00:00:00`);
+  return d.toLocaleDateString("lv-LV");
+}
+
+function formatDuration(minutes) {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+
+  if (h === 0) return `${m} min`;
+  if (m === 0) return `${h} h`;
+
+  return `${h} h ${m} min`;
+}
+
+function minutesToHours(minutes) {
+  return minutes / 60;
+}
+
+function roundHours(minutes) {
+  return Math.round(minutes / 60);
+}
+
+function monthDates(month) {
+  const [year, monthNumber] = month.split("-").map(Number);
+  const lastDay = new Date(year, monthNumber, 0).getDate();
+
+  return Array.from({ length: lastDay }, (_, i) => {
+    const day = i + 1;
+    return `${year}-${String(monthNumber).padStart(2, "0")}-${String(
+      day
+    ).padStart(2, "0")}`;
+  });
+}
+
+function monthLabel(month) {
+  const [year, m] = month.split("-").map(Number);
+  return new Date(year, m - 1, 1).toLocaleDateString("lv-LV", {
+    month: "long",
+    year: "numeric",
+  });
+}
+
 function App() {
   const [data, setData] = useState(loadData);
   const [page, setPage] = useState("work");
+  const [selectedMonth, setSelectedMonth] = useState(
+    new Date().toISOString().slice(0, 7)
+  );
+
   const [clientId, setClientId] = useState("");
-  const [job, setJob] = useState("");
+  const [jobId, setJobId] = useState("");
   const [note, setNote] = useState("");
-  const [timer, setTimer] = useState(null);
+
+  const [running, setRunning] = useState(null);
   const [now, setNow] = useState(Date.now());
+
+  const [newClient, setNewClient] = useState("");
+  const [newJob, setNewJob] = useState("");
+
+  const [infoCategory, setInfoCategory] = useState("");
+  const [infoTitle, setInfoTitle] = useState("");
+  const [infoValue, setInfoValue] = useState("");
+  const [infoYear, setInfoYear] = useState("2026");
+  const [editingInfoId, setEditingInfoId] = useState(null);
+
+  const [annualClientId, setAnnualClientId] = useState("");
+
+  const [newAnnualTask, setNewAnnualTask] = useState("");
+  const [newAnnualGroup, setNewAnnualGroup] = useState("Papildu darbi");
+
+  const [newReportName, setNewReportName] = useState("");
+  const [newReportPeriod, setNewReportPeriod] = useState("monthly");
+  const [newReportDueDay, setNewReportDueDay] = useState("20");
 
   useEffect(() => {
     localStorage.setItem(STORAGE, JSON.stringify(data));
   }, [data]);
 
   useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, []);
+    if (!running) return undefined;
 
-  const client = data.clients.find((c) => c.id === clientId);
+    const interval = setInterval(() => {
+      setNow(Date.now());
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [running]);
+
+  useEffect(() => {
+    if (!clientId && data.clients.length) {
+      setClientId(data.clients[0].id);
+    }
+
+    if (!jobId && data.jobs.length) {
+      setJobId(data.jobs[0].id);
+    }
+
+    if (!annualClientId && data.clients.length) {
+      setAnnualClientId(data.clients[0].id);
+    }
+  }, [data.clients, data.jobs]);
+
+  const selectedClient = data.clients.find((c) => c.id === clientId);
+  const selectedJob = data.jobs.find((j) => j.id === jobId);
+
+  const runningSeconds = running
+    ? Math.max(0, Math.floor((now - running.startedAt) / 1000))
+    : 0;
+
+  const runningMinutes = Math.floor(runningSeconds / 60);
+
+  const runningTime = `${String(Math.floor(runningSeconds / 3600)).padStart(
+    2,
+    "0"
+  )}:${String(Math.floor((runningSeconds % 3600) / 60)).padStart(
+    2,
+    "0"
+  )}:${String(runningSeconds % 60).padStart(2, "0")}`;
+
+  const monthEntries = useMemo(
+    () =>
+      data.entries.filter((entry) => entry.date?.startsWith(selectedMonth)),
+    [data.entries, selectedMonth]
+  );
+
+  const totalMonthMinutes = monthEntries.reduce(
+    (sum, entry) => sum + entry.duration,
+    0
+  );
+
+  function updateData(callback) {
+    setData((current) => {
+      const next = callback(current);
+      return next;
+    });
+  }
 
   function addClient() {
-    const name = prompt("Klienta nosaukums:");
-    if (!name?.trim()) return;
+    const name = newClient.trim();
 
-    const vat = prompt(
-      "PVN periods: monthly = katru mēnesi, quarterly = reizi ceturksnī, none = nav PVN"
-    );
+    if (!name) return;
 
-    const newClient = {
-      id: Date.now().toString(),
-      name: name.trim(),
-      vat:
-        vat === "quarterly"
-          ? "quarterly"
-          : vat === "none"
-          ? "none"
-          : "monthly",
+    const client = {
+      ...emptyClient(),
+      name,
     };
 
-    setData((d) => ({
+    updateData((d) => ({
       ...d,
-      clients: [...d.clients, newClient],
+      clients: [...d.clients, client],
     }));
 
-    setClientId(newClient.id);
+    setClientId(client.id);
+    setNewClient("");
   }
 
-  function addJob() {
-    const name = prompt("Darba veids:");
-    if (!name?.trim()) return;
+  function deleteClient(id) {
+    const client = data.clients.find((c) => c.id === id);
+    if (!client) return;
 
-    setData((d) => ({
-      ...d,
-      jobs: [...d.jobs, name.trim()],
-    }));
-
-    setJob(name.trim());
-  }
-
-  function startTimer() {
-    if (!clientId || !job) {
-      alert("Vispirms izvēlies klientu un darbu.");
+    if (
+      !window.confirm(
+        `Vai tiešām dzēst klientu "${client.name}"?\n\nVēsturiskie darba laika ieraksti netiks dzēsti.`
+      )
+    ) {
       return;
     }
 
-    setTimer({
-      start: Date.now(),
+    updateData((d) => {
+      const statuses = { ...d.reportStatuses };
+
+      Object.keys(statuses).forEach((key) => {
+        if (key.includes(`|${id}|`)) {
+          delete statuses[key];
+        }
+      });
+
+      const annual = { ...d.annual };
+      delete annual[id];
+
+      return {
+        ...d,
+        clients: d.clients.filter((c) => c.id !== id),
+        reportStatuses: statuses,
+        annual,
+      };
+    });
+
+    if (clientId === id) {
+      const next = data.clients.find((c) => c.id !== id);
+      setClientId(next?.id || "");
+    }
+  }
+
+  function addJob() {
+    const name = newJob.trim();
+
+    if (!name) return;
+
+    const job = {
+      ...emptyJob(),
+      name,
+    };
+
+    updateData((d) => ({
+      ...d,
+      jobs: [...d.jobs, job],
+    }));
+
+    setJobId(job.id);
+    setNewJob("");
+  }
+
+  function deleteJob(id) {
+    const job = data.jobs.find((j) => j.id === id);
+    if (!job) return;
+
+    if (
+      !window.confirm(
+        `Vai tiešām dzēst darbu "${job.name}"?\n\nEsošie darba laika ieraksti netiks dzēsti.`
+      )
+    ) {
+      return;
+    }
+
+    updateData((d) => ({
+      ...d,
+      jobs: d.jobs.filter((j) => j.id !== id),
+    }));
+
+    if (jobId === id) {
+      const next = data.jobs.find((j) => j.id !== id);
+      setJobId(next?.id || "");
+    }
+  }
+
+  function startWork() {
+    if (!clientId || !jobId) {
+      alert("Izvēlies klientu un darbu.");
+      return;
+    }
+
+    if (running) {
+      alert("Darbs jau tiek uzskaitīts.");
+      return;
+    }
+
+    setRunning({
       clientId,
-      job,
+      jobId,
+      startedAt: Date.now(),
+      date: todayISO(),
+      note,
     });
   }
 
-  function stopTimer() {
-    if (!timer) return;
+  function stopWork() {
+    if (!running) return;
 
     const end = Date.now();
-    const duration = Math.max(0, end - timer.start);
+    const duration = Math.max(
+      1,
+      Math.round((end - running.startedAt) / 60000)
+    );
 
     const entry = {
-      id: Date.now().toString(),
-      date: new Date(timer.start).toISOString().slice(0, 10),
-      clientId: timer.clientId,
-      job: timer.job,
-      start: new Date(timer.start).toLocaleTimeString("lv-LV", {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-      end: new Date(end).toLocaleTimeString("lv-LV", {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
+      id: uid("entry"),
+      clientId: running.clientId,
+      jobId: running.jobId,
+      date: running.date,
+      startedAt: new Date(running.startedAt).toISOString(),
+      endedAt: new Date(end).toISOString(),
       duration,
-      note,
+      note: running.note || "",
     };
 
-    setData((d) => ({
+    updateData((d) => ({
       ...d,
-      entries: [...d.entries, entry],
+      entries: [entry, ...d.entries],
     }));
 
-    setTimer(null);
+    setRunning(null);
     setNote("");
   }
 
-  function pauseTimer() {
-    alert("Pauzes funkciju pievienosim nākamajā versijā.");
+  function addManualEntry() {
+    if (!clientId || !jobId) {
+      alert("Izvēlies klientu un darbu.");
+      return;
+    }
+
+    const minutes = Number(
+      window.prompt("Cik minūtes nostrādātas?", "60")
+    );
+
+    if (!minutes || minutes <= 0) return;
+
+    const date = window.prompt("Datums YYYY-MM-DD", todayISO());
+
+    if (!date) return;
+
+    const entry = {
+      id: uid("entry"),
+      clientId,
+      jobId,
+      date,
+      startedAt: "",
+      endedAt: "",
+      duration: Math.round(minutes),
+      note: note || "",
+    };
+
+    updateData((d) => ({
+      ...d,
+      entries: [entry, ...d.entries],
+    }));
+
+    setNote("");
   }
 
-  function formatDuration(ms) {
-    const totalSeconds = Math.floor(ms / 1000);
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
+  function deleteEntry(id) {
+    if (!window.confirm("Dzēst šo darba laika ierakstu?")) return;
 
-    return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(
-      2,
-      "0"
-    )}:${String(seconds).padStart(2, "0")}`;
+    updateData((d) => ({
+      ...d,
+      entries: d.entries.filter((e) => e.id !== id),
+    }));
   }
 
   function exportExcel() {
-    const rows = data.entries.map((e) => ({
-      Datums: e.date,
-      Klients:
-        data.clients.find((c) => c.id === e.clientId)?.name || "Nezināms",
-      Darbs: e.job,
-      Sākums: e.start,
-      Beigas: e.end,
-      Stundas: (e.duration / 3600000).toFixed(2),
-      Piezīme: e.note || "",
+    const dates = monthDates(selectedMonth);
+
+    const rows = data.clients.map((client) => {
+      const row = {
+        Klients: client.name,
+      };
+
+      dates.forEach((date) => {
+        const minutes = monthEntries
+          .filter(
+            (e) => e.clientId === client.id && e.date === date
+          )
+          .reduce((sum, e) => sum + e.duration, 0);
+
+        row[date] = minutes
+          ? Number(minutesToHours(minutes).toFixed(2))
+          : "";
+      });
+
+      const total = monthEntries
+        .filter((e) => e.clientId === client.id)
+        .reduce((sum, e) => sum + e.duration, 0);
+
+      row["Mēneša kopā (h)"] = roundHours(total);
+
+      return row;
+    });
+
+    const workbook = XLSX.utils.book_new();
+
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Darba laiks");
+
+    const notes = monthEntries.map((entry) => {
+      const client = data.clients.find((c) => c.id === entry.clientId);
+      const job = data.jobs.find((j) => j.id === entry.jobId);
+
+      return {
+        Datums: formatDate(entry.date),
+        Klients: client?.name || "",
+        "Paveiktais darbs": entry.note || job?.name || "",
+      };
+    });
+
+    const notesSheet = XLSX.utils.json_to_sheet(notes);
+    XLSX.utils.book_append_sheet(workbook, notesSheet, "Piezīmes");
+
+    XLSX.writeFile(
+      workbook,
+      `gramatvedibas-darba-${selectedMonth}.xlsx`
+    );
+  }
+
+  function saveInfo() {
+    if (!infoCategory.trim() || !infoTitle.trim() || !infoValue.trim()) {
+      alert("Aizpildi kategoriju, nosaukumu un informāciju.");
+      return;
+    }
+
+    if (editingInfoId) {
+      updateData((d) => ({
+        ...d,
+        info: d.info.map((item) =>
+          item.id === editingInfoId
+            ? {
+                ...item,
+                category: infoCategory.trim(),
+                title: infoTitle.trim(),
+                value: infoValue.trim(),
+                year: infoYear,
+              }
+            : item
+        ),
+      }));
+    } else {
+      updateData((d) => ({
+        ...d,
+        info: [
+          ...d.info,
+          {
+            id: uid("info"),
+            category: infoCategory.trim(),
+            title: infoTitle.trim(),
+            value: infoValue.trim(),
+            year: infoYear,
+          },
+        ],
+      }));
+    }
+
+    resetInfoForm();
+  }
+
+  function resetInfoForm() {
+    setInfoCategory("");
+    setInfoTitle("");
+    setInfoValue("");
+    setInfoYear("2026");
+    setEditingInfoId(null);
+  }
+
+  function editInfo(item) {
+    setInfoCategory(item.category);
+    setInfoTitle(item.title);
+    setInfoValue(item.value);
+    setInfoYear(item.year || "");
+    setEditingInfoId(item.id);
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  }
+
+  function deleteInfo(id) {
+    if (!window.confirm("Dzēst šo informāciju?")) return;
+
+    updateData((d) => ({
+      ...d,
+      info: d.info.filter((item) => item.id !== id),
+    }));
+  }
+
+  function getAnnualTasks(clientIdValue) {
+    const custom = data.annual[clientIdValue]?.custom || [];
+
+    return [
+      ...standardAnnualTasks.flatMap((group) =>
+        group.tasks.map((text) => ({
+          id: `${group.group}-${text}`,
+          text,
+          group: group.group,
+          custom: false,
+        }))
+      ),
+      ...custom,
+    ];
+  }
+
+  function isAnnualDone(client, taskId) {
+    return Boolean(data.annual[client]?.done?.[taskId]);
+  }
+
+  function toggleAnnualTask(client, taskId) {
+    updateData((d) => {
+      const clientAnnual = d.annual[client] || {
+        done: {},
+        custom: [],
+      };
+
+      return {
+        ...d,
+        annual: {
+          ...d.annual,
+          [client]: {
+            ...clientAnnual,
+            done: {
+              ...clientAnnual.done,
+              [taskId]: !clientAnnual.done?.[taskId],
+            },
+          },
+        },
+      };
+    });
+  }
+
+  function addAnnualTask() {
+    if (!annualClientId || !newAnnualTask.trim()) return;
+
+    const task = {
+      id: uid("annual"),
+      text: newAnnualTask.trim(),
+      group: newAnnualGroup.trim() || "Papildu darbi",
+      custom: true,
+    };
+
+    updateData((d) => {
+      const clientAnnual = d.annual[annualClientId] || {
+        done: {},
+        custom: [],
+      };
+
+      return {
+        ...d,
+        annual: {
+          ...d.annual,
+          [annualClientId]: {
+            ...clientAnnual,
+            custom: [...clientAnnual.custom, task],
+          },
+        },
+      };
+    });
+
+    setNewAnnualTask("");
+  }
+
+  function deleteAnnualTask(taskId) {
+    updateData((d) => {
+      const clientAnnual = d.annual[annualClientId];
+      if (!clientAnnual) return d;
+
+      return {
+        ...d,
+        annual: {
+          ...d.annual,
+          [annualClientId]: {
+            ...clientAnnual,
+            custom: clientAnnual.custom.filter(
+              (task) => task.id !== taskId
+            ),
+          },
+        },
+      };
+    });
+  }
+
+  function addReportType() {
+    if (!newReportName.trim()) {
+      alert("Ievadi atskaites nosaukumu.");
+      return;
+    }
+
+    const dueDay = Number(newReportDueDay);
+
+    if (!dueDay || dueDay < 1 || dueDay > 31) {
+      alert("Termiņa dienai jābūt no 1 līdz 31.");
+      return;
+    }
+
+    const report = {
+      id: uid("report"),
+      name: newReportName.trim(),
+      period: newReportPeriod,
+      dueDay,
+      builtIn: false,
+    };
+
+    updateData((d) => ({
+      ...d,
+      reportTypes: [...d.reportTypes, report],
     }));
 
-    const ws = XLSX.utils.json_to_sheet(rows);
-    const wb = XLSX.utils.book_new();
-
-    XLSX.utils.book_append_sheet(wb, ws, "Darba laiks");
-    XLSX.writeFile(wb, "darba-laiks.xlsx");
+    setNewReportName("");
+    setNewReportPeriod("monthly");
+    setNewReportDueDay("20");
   }
 
-  const nav = [
-    ["work", "Darba laiks", Clock3],
-    ["table", "Atskaite", Table2],
-    ["calendar", "Kalendārs", CalendarDays],
-    ["info", "Informācija", BookOpen],
-    ["annual", "Gada pārskats", ClipboardCheck],
-    ["deadlines", "Termiņi", Bell],
-  ];
+  function deleteReportType(reportId) {
+    const report = data.reportTypes.find((r) => r.id === reportId);
 
-  return (
-    <div className="app">
-      <header className="topbar">
-        <div>
-          <h1>Grāmatvedības darba pārvaldība</h1>
-          <p>Darba laiks, klienti, atskaites un termiņi</p>
-        </div>
-      </header>
+    if (!report || report.builtIn) {
+      alert("Iebūvēto atskaiti nevar dzēst.");
+      return;
+    }
 
-      <nav className="nav">
-        {nav.map(([id, label, Icon]) => (
-          <button
-            key={id}
-            className={page === id ? "nav-btn active" : "nav-btn"}
-            onClick={() => setPage(id)}
-          >
-            <Icon size={18} />
-            <span>{label}</span>
-          </button>
-        ))}
-      </nav>
+    if (!window.confirm(`Dzēst atskaiti "${report.name}"?`)) return;
 
-      <main className="content">
-        {page === "work" && (
-          <WorkPage
-            data={data}
-            clientId={clientId}
-            setClientId={setClientId}
-            job={job}
-            setJob={setJob}
-            note={note}
-            setNote={setNote}
-            timer={timer}
-            now={now}
-            addClient={addClient}
-            addJob={addJob}
-            startTimer={startTimer}
-            stopTimer={stopTimer}
-            pauseTimer={pauseTimer}
-            formatDuration={formatDuration}
-          />
-        )}
-
-        {page === "table" && (
-          <TablePage data={data} exportExcel={exportExcel} />
-        )}
-
-        {page === "calendar" && <CalendarPage />}
-
-        {page === "info" && <InfoPage />}
-
-        {page === "annual" && <AnnualPage data={data} setData={setData} />}
-
-        {page === "deadlines" && (
-          <DeadlinesPage data={data} setData={setData} />
-        )}
-      </main>
-    </div>
-  );
-}
-
-function WorkPage({
-  data,
-  clientId,
-  setClientId,
-  job,
-  setJob,
-  note,
-  setNote,
-  timer,
-  now,
-  addClient,
-  addJob,
-  startTimer,
-  stopTimer,
-  pauseTimer,
-  formatDuration,
-}) {
-  return (
-    <>
-      <section className="card">
-        <div className="section-title">
-          <div>
-            <h2>Darba laiks</h2>
-            <p>Izvēlies klientu un darbu un sāc uzskaiti.</p>
-          </div>
-        </div>
-
-        <div className="form-grid">
-          <div>
-            <label>Klients</label>
-            <div className="inline">
-              <select
-                value={clientId}
-                onChange={(e) => setClientId(e.target.value)}
-              >
-                <option value="">Izvēlies klientu</option>
-                {data.clients.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-
-              <button className="icon-btn" onClick={addClient}>
-                <Plus size={18} />
-              </button>
-            </div>
-          </div>
-
-          <div>
-            <label>Darbs</label>
-            <div className="inline">
-              <select value={job} onChange={(e) => setJob(e.target.value)}>
-                <option value="">Izvēlies darbu</option>
-                {data.jobs.map((j) => (
-                  <option key={j} value={j}>
-                    {j}
-                  </option>
-                ))}
-              </select>
-
-              <button className="icon-btn" onClick={addJob}>
-                <Plus size={18} />
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <label>Piezīme par paveikto</label>
-        <textarea
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          placeholder="Piemēram: sagatavota PVN deklarācija, pārbaudīti bankas konti..."
-        />
-
-        {!timer ? (
-          <button className="primary-btn" onClick={startTimer}>
-            <Play size={18} />
-            Sākt darbu
-          </button>
-        ) : (
-          <div className="timer-box">
-            <div>
-              <strong>
-                {data.clients.find((c) => c.id === timer.clientId)?.name}
-              </strong>
-              <span>{timer.job}</span>
-            </div>
-
-            <div className="timer">
-              {formatDuration(now - timer.start)}
-            </div>
-
-            <div className="timer-actions">
-              <button className="secondary-btn" onClick={pauseTimer}>
-                <Pause size={17} />
-                Pauze
-              </button>
-
-              <button className="danger-btn" onClick={stopTimer}>
-                <Square size={17} />
-                Pabeigt
-              </button>
-            </div>
-          </div>
-        )}
-      </section>
-
-      <section className="card">
-        <div className="section-title">
-          <h2>Pēdējie ieraksti</h2>
-        </div>
-
-        {data.entries.length === 0 ? (
-          <p className="muted">Pagaidām nav neviena darba laika ieraksta.</p>
-        ) : (
-          <div className="entries">
-            {[...data.entries].reverse().slice(0, 10).map((e) => (
-              <div className="entry" key={e.id}>
-                <div>
-                  <strong>
-                    {data.clients.find((c) => c.id === e.clientId)?.name}
-                  </strong>
-                  <span>{e.job}</span>
-                  <small>
-                    {e.date} · {e.start}–{e.end}
-                  </small>
-                </div>
-
-                <strong>{(e.duration / 3600000).toFixed(2)} h</strong>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
-    </>
-  );
-}
-
-function TablePage({ data, exportExcel }) {
-  const grouped = useMemo(() => {
-    const result = {};
-
-    data.clients.forEach((c) => {
-      result[c.id] = {};
-    });
-
-    data.entries.forEach((e) => {
-      if (!result[e.clientId]) result[e.clientId] = {};
-
-      if (!result[e.clientId][e.date]) {
-        result[e.clientId][e.date] = 0;
-      }
-
-      result[e.clientId][e.date] += e.duration;
-    });
-
-    return result;
-  }, [data]);
-
-  const dates = [
-    ...new Set(data.entries.map((e) => e.date)),
-  ].sort();
-
-  function roundHours(ms) {
-    return Math.round(ms / 3600000);
-  }
-
-  return (
-    <section className="card">
-      <div className="section-title">
-        <div>
-          <h2>Mēneša darba laika atskaite</h2>
-          <p>Stundas pa klientiem un datumiem.</p>
-        </div>
-
-        <button className="secondary-btn" onClick={exportExcel}>
-          <Download size={17} />
-          Excel
-        </button>
-      </div>
-
-      <div className="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Klients</th>
-
-              {dates.map((d) => (
-                <th key={d}>{d.slice(8, 10)}.{d.slice(5, 7)}</th>
-              ))}
-
-              <th>Kopā</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {data.clients.map((client) => {
-              const total = Object.values(
-                grouped[client.id] || {}
-              ).reduce((a, b) => a + b, 0);
-
-              return (
-                <tr key={client.id}>
-                  <td>{client.name}</td>
-
-                  {dates.map((date) => (
-                    <td key={date}>
-                      {grouped[client.id]?.[date]
-                        ? `${(
-                            grouped[client.id][date] / 3600000
-                          ).toFixed(2)} h`
-                        : "—"}
-                    </td>
-                  ))}
-
-                  <td>
-                    <strong>{roundHours(total)} h</strong>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="notes-box">
-        <h3>Paveiktais darbs</h3>
-
-        {data.entries.length === 0 ? (
-          <p className="muted">Nav ierakstu.</p>
-        ) : (
-          data.entries.map((e) => (
-            <div key={e.id} className="note-row">
-              <strong>
-                {e.date} —{" "}
-                {data.clients.find((c) => c.id === e.clientId)?.name}
-              </strong>
-              <span>
-                {e.note || e.job}
-              </span>
-            </div>
-          ))
-        )}
-      </div>
-    </section>
-  );
-}
-
-function CalendarPage() {
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = today.getMonth();
-
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const firstDay = new Date(year, month, 1).getDay();
-
-  const weekDays = ["P", "O", "T", "C", "P", "S", "Sv"];
-
-  const holidays = {
-    "01-01": "Jaungada diena",
-    "05-01": "Darba svētki",
-    "11-18": "Latvijas Republikas Proklamēšanas diena",
-    "12-24": "Ziemassvētku vakars",
-    "12-25": "Ziemassvētki",
-    "12-26": "Otrie Ziemassvētki",
-  };
-
-  const cells = [];
-
-  let start = firstDay === 0 ? 6 : firstDay - 1;
-
-  for (let i = 0; i < start; i++) {
-    cells.push(null);
-  }
-
-  for (let day = 1; day <= daysInMonth; day++) {
-    cells.push(day);
-  }
-
-  return (
-    <section className="card">
-      <div className="section-title">
-        <div>
-          <h2>Kalendārs</h2>
-          <p>
-            {today.toLocaleDateString("lv-LV", {
-              month: "long",
-              year: "numeric",
-            })}
-          </p>
-        </div>
-      </div>
-
-      <div className="calendar">
-        {weekDays.map((d) => (
-          <div className="calendar-head" key={d}>
-            {d}
-          </div>
-        ))}
-
-        {cells.map((day, index) => {
-          if (!day) {
-            return <div key={index} className="calendar-day empty" />;
-          }
-
-          const date = `${String(month + 1).padStart(2, "0")}-${String(
-            day
-          ).padStart(2, "0")}`;
-
-          const weekday = (start + day - 1) % 7;
-          const weekend = weekday >= 5;
-
-          return (
-            <div
-              key={day}
-              className={
-                weekend || holidays[date]
-                  ? "calendar-day red"
-                  : "calendar-day"
-              }
-              title={holidays[date] || ""}
-            >
-              {day}
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="legend">
-        <span className="legend-red" />
-        Brīvdiena / svētku diena
-      </div>
-    </section>
-  );
-}
-
-function InfoPage() {
-  const topics = [
-    "Nodokļu likmes",
-    "PVN",
-    "IIN",
-    "VSAOI",
-    "Minimālā alga",
-    "Deklarāciju termiņi",
-    "Pamatlīdzekļi",
-    "Reprezentācijas izdevumi",
-    "Komandējumi",
-    "Gada pārskats",
-    "Manas piezīmes",
-  ];
-
-  return (
-    <section className="card">
-      <div className="section-title">
-        <div>
-          <h2>Informācija</h2>
-          <p>Grāmatvedības darba ātrā uzziņa.</p>
-        </div>
-      </div>
-
-      <div className="info-grid">
-        {topics.map((topic) => (
-          <div className="info-card" key={topic}>
-            <BookOpen size={19} />
-            <strong>{topic}</strong>
-            <span>Atvērt un rediģēt</span>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function AnnualPage({ data, setData }) {
-  const [clientId, setClientId] = useState(data.clients[0]?.id || "");
-
-  const standardTasks = [
-    "2310 atlikums pārbaudīts",
-    "2310 pareizajā pusē",
-    "2380 pārbaudīts",
-    "Salīdzināšanas akti nosūtīti",
-    "Salīdzināšanas akti saņemti",
-    "Bankas atlikums pārbaudīts",
-    "Kases atlikums pārbaudīts",
-    "Pamatlīdzekļu inventarizācija",
-    "Pamatlīdzekļu atlikumi pārbaudīti",
-    "Nolietojums pārbaudīts",
-    "Ieņēmumi pārbaudīti",
-    "Izdevumi pārbaudīti",
-    "Uzkrājumi pārbaudīti",
-  ];
-
-  const key = `${clientId}-annual`;
-  const completed = data.annual[key] || {};
-
-  function toggle(task) {
-    setData((d) => ({
+    updateData((d) => ({
       ...d,
-      annual: {
-        ...d.annual,
+      reportTypes: d.reportTypes.filter((r) => r.id !== reportId),
+    }));
+  }
+
+  function reportStatusKey(reportId, clientIdValue) {
+    return `${selectedMonth}|${clientIdValue}|${reportId}`;
+  }
+
+  function getReportStatus(reportId, clientIdValue) {
+    return (
+      data.reportStatuses[
+        reportStatusKey(reportId, clientIdValue)
+      ] || {
+        submitted: false,
+        taxSent: false,
+      }
+    );
+  }
+
+  function toggleReportStatus(
+    reportId,
+    clientIdValue,
+    field
+  ) {
+    const key = reportStatusKey(reportId, clientIdValue);
+    const current = getReportStatus(reportId, clientIdValue);
+
+    updateData((d) => ({
+      ...d,
+      reportStatuses: {
+        ...d.reportStatuses,
         [key]: {
-          ...completed,
-          [task]: !completed[task],
+          ...current,
+          [field]: !current[field],
         },
       },
     }));
   }
 
-  return (
-    <section className="card">
-      <div className="section-title">
-        <div>
-          <h2>Gada pārskats</h2>
-          <p>Pārbaudes saraksts katram klientam.</p>
-        </div>
-      </div>
+  function periodLabel(period) {
+    if (period === "monthly") return "Katru mēnesi";
+    if (period === "quarterly") return "Reizi ceturksnī";
+    return "Reizi gadā";
+  }
 
-      <select
-        value={clientId}
-        onChange={(e) => setClientId(e.target.value)}
-      >
-        {data.clients.map((c) => (
-          <option value={c.id} key={c.id}>
-            {c.name}
-          </option>
-        ))}
-      </select>
+  function reportRelevant(client, report) {
+    if (report.id === "vat" && client.vatPeriod === "none") {
+      return false;
+    }
 
-      <div className="checklist">
-        {standardTasks.map((task) => (
-          <label className="check-row" key={task}>
-            <input
-              type="checkbox"
-              checked={!!completed[task]}
-              onChange={() => toggle(task)}
+    return true;
+  }
+
+  function renderWork() {
+    return (
+      <>
+        <div className="card">
+          <div className="section-title">
+            <div>
+              <h2>Darba laiks</h2>
+              <p>
+                Uzskaiti laiku pēc klienta un veicamā darba.
+              </p>
+            </div>
+            <Clock3 size={28} />
+          </div>
+
+          <div className="form-grid">
+            <div>
+              <label>Klients</label>
+
+              <div className="inline">
+                <select
+                  value={clientId}
+                  onChange={(e) => setClientId(e.target.value)}
+                >
+                  <option value="">Izvēlies klientu</option>
+
+                  {data.clients.map((client) => (
+                    <option key={client.id} value={client.id}>
+                      {client.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="inline" style={{ marginTop: 10 }}>
+                <input
+                  type="text"
+                  placeholder="Jauns klients..."
+                  value={newClient}
+                  onChange={(e) => setNewClient(e.target.value)}
+                />
+
+                <button
+                  className="icon-btn"
+                  onClick={addClient}
+                  title="Pievienot klientu"
+                >
+                  <Plus size={22} />
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label>Darbs</label>
+
+              <select
+                value={jobId}
+                onChange={(e) => setJobId(e.target.value)}
+              >
+                <option value="">Izvēlies darbu</option>
+
+                {data.jobs.map((job) => (
+                  <option key={job.id} value={job.id}>
+                    {job.name}
+                  </option>
+                ))}
+              </select>
+
+              <div className="inline" style={{ marginTop: 10 }}>
+                <input
+                  type="text"
+                  placeholder="Jauns darbs..."
+                  value={newJob}
+                  onChange={(e) => setNewJob(e.target.value)}
+                />
+
+                <button
+                  className="icon-btn"
+                  onClick={addJob}
+                  title="Pievienot darbu"
+                >
+                  <Plus size={22} />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ marginTop: 24 }}>
+            <label>Ko izdarīji?</label>
+
+            <textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="Piemēram: pārbaudīti bankas izraksti, sagatavota PVN deklarācija..."
             />
-            <span>{task}</span>
-            {completed[task] && <Check size={18} />}
-          </label>
-        ))}
-      </div>
+          </div>
 
-      <button
-        className="secondary-btn"
-        onClick={() => {
-          const task = prompt("Papildu uzdevums:");
-          if (!task?.trim()) return;
+          {!running ? (
+            <button className="primary-btn" onClick={startWork}>
+              <Clock3 size={21} />
+              Sākt darbu
+            </button>
+          ) : (
+            <div className="timer-box">
+              <div>
+                <strong>
+                  {selectedClient?.name || "Klients"}
+                </strong>
+                <span>
+                  {selectedJob?.name || "Darbs"}
+                </span>
+              </div>
 
-          const current = data.annual[key] || {};
+              <div className="timer">{runningTime}</div>
 
-          setData((d) => ({
-            ...d,
-            annual: {
-              ...d.annual,
-              [key]: {
-                ...current,
-                [task.trim()]: false,
-              },
-            },
-          }));
-        }}
-      >
-        <Plus size={17} />
-        Pievienot klienta uzdevumu
-      </button>
-    </section>
-  );
-}
+              <div className="timer-actions">
+                <button
+                  className="primary-btn"
+                  onClick={stopWork}
+                >
+                  <CheckCircle2 size={21} />
+                  Pabeigt darbu
+                </button>
+              </div>
+            </div>
+          )}
 
-function DeadlinesPage({ data, setData }) {
-  const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
-
-  const monthName = new Date(`${month}-01`).toLocaleDateString("lv-LV", {
-    month: "long",
-    year: "numeric",
-  });
-
-  function reportKey(clientId, report) {
-    return `${month}-${clientId}-${report}`;
-  }
-
-  function toggle(clientId, report) {
-    const key = reportKey(clientId, report);
-
-    setData((d) => ({
-      ...d,
-      reports: {
-        ...d.reports,
-        [key]: !d.reports[key],
-      },
-    }));
-  }
-
-  return (
-    <section className="card">
-      <div className="section-title">
-        <div>
-          <h2>Termiņi un atskaites</h2>
-          <p>Kontrole pa klientiem un atskaišu veidiem.</p>
+          <div style={{ marginTop: 12 }}>
+            <button
+              className="secondary-btn"
+              onClick={addManualEntry}
+            >
+              <Plus size={18} />
+              Pievienot laiku manuāli
+            </button>
+          </div>
         </div>
-      </div>
 
-      <input
-        type="month"
-        value={month}
-        onChange={(e) => setMonth(e.target.value)}
-      />
+        <div className="card">
+          <div className="section-title">
+            <div>
+              <h2>Klientu pārvaldība</h2>
+              <p>Šeit vari dzēst klientus.</p>
+            </div>
+            <Users size={27} />
+          </div>
 
-      <h3 style={{ marginTop: 20 }}>{monthName}</h3>
+          <div className="manage-list">
+            {data.clients.map((client) => (
+              <div className="manage-row" key={client.id}>
+                <div>
+                  <strong>{client.name}</strong>
+                  <span>
+                    PVN:{" "}
+                    {client.vatPeriod === "monthly"
+                      ? "katru mēnesi"
+                      : client.vatPeriod === "quarterly"
+                      ? "ceturksnī"
+                      : "nav PVN"}
+                  </span>
+                </div>
 
-      <div className="report-list">
-        {data.clients.map((client) => {
-          const reports =
-            client.vat === "monthly"
-              ? ["PVN deklarācija"]
-              : client.vat === "quarterly"
-              ? ["PVN deklarācija — ceturksnis"]
-              : [];
+                <button
+                  className="danger-btn"
+                  onClick={() => deleteClient(client.id)}
+                >
+                  <Trash2 size={17} />
+                  Dzēst
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
 
-          return (
-            <div className="report-client" key={client.id}>
-              <strong>{client.name}</strong>
+        <div className="card">
+          <div className="section-title">
+            <div>
+              <h2>Darbu pārvaldība</h2>
+              <p>Dzēšot darbu, vēsturiskie ieraksti saglabājas.</p>
+            </div>
+            <BriefcaseBusiness size={27} />
+          </div>
 
-              {reports.length === 0 ? (
-                <span className="muted">Nav PVN deklarācijas.</span>
-              ) : (
-                reports.map((report) => {
-                  const done = data.reports[reportKey(client.id, report)];
+          <div className="manage-list">
+            {data.jobs.map((job) => (
+              <div className="manage-row" key={job.id}>
+                <div>
+                  <strong>{job.name}</strong>
+                </div>
+
+                <button
+                  className="danger-btn"
+                  onClick={() => deleteJob(job.id)}
+                >
+                  <Trash2 size={17} />
+                  Dzēst
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="section-title">
+            <div>
+              <h2>Pēdējie ieraksti</h2>
+              <p>Darba laika uzskaite.</p>
+            </div>
+          </div>
+
+          <div className="entries">
+            {data.entries.slice(0, 15).map((entry) => {
+              const client = data.clients.find(
+                (c) => c.id === entry.clientId
+              );
+              const job = data.jobs.find(
+                (j) => j.id === entry.jobId
+              );
+
+              return (
+                <div className="entry" key={entry.id}>
+                  <div>
+                    <strong>{client?.name || "Dzēsts klients"}</strong>
+                    <span>{job?.name || "Dzēsts darbs"}</span>
+                    <small>
+                      {formatDate(entry.date)} ·{" "}
+                      {formatDuration(entry.duration)}
+                    </small>
+
+                    {entry.note && (
+                      <small>{entry.note}</small>
+                    )}
+                  </div>
+
+                  <button
+                    className="danger-btn"
+                    onClick={() => deleteEntry(entry.id)}
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              );
+            })}
+
+            {!data.entries.length && (
+              <p className="muted">
+                Vēl nav saglabātu darba laika ierakstu.
+              </p>
+            )}
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  function renderTable() {
+    const dates = monthDates(selectedMonth);
+
+    return (
+      <div className="card">
+        <div className="section-title">
+          <div>
+            <h2>Darba laika atskaite</h2>
+            <p>
+              {monthLabel(selectedMonth)} · mēneša kopsummas
+              noapaļotas līdz pilnām stundām.
+            </p>
+          </div>
+
+          <button
+            className="secondary-btn"
+            onClick={exportExcel}
+          >
+            <Download size={18} />
+            Excel
+          </button>
+        </div>
+
+        <div className="inline" style={{ marginBottom: 20 }}>
+          <input
+            type="month"
+            value={selectedMonth}
+            onChange={(e) => setSelectedMonth(e.target.value)}
+          />
+        </div>
+
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Klients</th>
+
+                {dates.map((date) => (
+                  <th key={date}>
+                    {Number(date.slice(-2))}
+                  </th>
+                ))}
+
+                <th>Mēnesī</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {data.clients.map((client) => {
+                const clientMinutes = monthEntries
+                  .filter((e) => e.clientId === client.id)
+                  .reduce((sum, e) => sum + e.duration, 0);
+
+                return (
+                  <tr key={client.id}>
+                    <td>
+                      <strong>{client.name}</strong>
+                    </td>
+
+                    {dates.map((date) => {
+                      const minutes = monthEntries
+                        .filter(
+                          (e) =>
+                            e.clientId === client.id &&
+                            e.date === date
+                        )
+                        .reduce(
+                          (sum, e) => sum + e.duration,
+                          0
+                        );
+
+                      return (
+                        <td key={date}>
+                          {minutes
+                            ? minutesToHours(minutes).toFixed(2)
+                            : ""}
+                        </td>
+                      );
+                    })}
+
+                    <td>
+                      <strong>
+                        {roundHours(clientMinutes)} h
+                      </strong>
+                    </td>
+                  </tr>
+                );
+              })}
+
+              <tr>
+                <td>
+                  <strong>KOPĀ</strong>
+                </td>
+
+                {dates.map((date) => {
+                  const minutes = monthEntries
+                    .filter((e) => e.date === date)
+                    .reduce(
+                      (sum, e) => sum + e.duration,
+                      0
+                    );
 
                   return (
-                    <label className="report-row" key={report}>
+                    <td key={date}>
+                      {minutes
+                        ? minutesToHours(minutes).toFixed(2)
+                        : ""}
+                    </td>
+                  );
+                })}
+
+                <td>
+                  <strong>
+                    {roundHours(totalMonthMinutes)} h
+                  </strong>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div className="notes-box">
+          <h3>Paveiktais darbs</h3>
+
+          {monthEntries.length === 0 ? (
+            <p className="muted">
+              Šajā mēnesī vēl nav ierakstu.
+            </p>
+          ) : (
+            monthEntries
+              .slice()
+              .sort((a, b) => a.date.localeCompare(b.date))
+              .map((entry) => {
+                const client = data.clients.find(
+                  (c) => c.id === entry.clientId
+                );
+
+                const job = data.jobs.find(
+                  (j) => j.id === entry.jobId
+                );
+
+                return (
+                  <div className="note-row" key={entry.id}>
+                    <strong>
+                      {formatDate(entry.date)} ·{" "}
+                      {client?.name}
+                    </strong>
+
+                    <span>
+                      {entry.note || job?.name || ""}
+                    </span>
+                  </div>
+                );
+              })
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  function renderCalendar() {
+    const [year, month] = selectedMonth.split("-").map(Number);
+    const firstDay = new Date(year, month - 1, 1);
+    const daysInMonth = new Date(year, month, 0).getDate();
+
+    const startDay = (firstDay.getDay() + 6) % 7;
+
+    const cells = [];
+
+    for (let i = 0; i < startDay; i++) {
+      cells.push(
+        <div className="calendar-day empty" key={`empty-${i}`} />
+      );
+    }
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = new Date(year, month - 1, day);
+      const weekday = date.getDay();
+      const weekend = weekday === 0 || weekday === 6;
+
+      cells.push(
+        <div
+          className={`calendar-day ${weekend ? "red" : ""}`}
+          key={day}
+        >
+          {day}
+        </div>
+      );
+    }
+
+    return (
+      <div className="card">
+        <div className="section-title">
+          <div>
+            <h2>Kalendārs</h2>
+            <p>Darba dienas un nedēļas nogales.</p>
+          </div>
+          <CalendarDays size={28} />
+        </div>
+
+        <div className="inline" style={{ marginBottom: 22 }}>
+          <button
+            className="icon-btn"
+            onClick={() => {
+              const [y, m] = selectedMonth
+                .split("-")
+                .map(Number);
+
+              const d = new Date(y, m - 2, 1);
+
+              setSelectedMonth(
+                `${d.getFullYear()}-${String(
+                  d.getMonth() + 1
+                ).padStart(2, "0")}`
+              );
+            }}
+          >
+            <ChevronLeft size={21} />
+          </button>
+
+          <input
+            type="month"
+            value={selectedMonth}
+            onChange={(e) => setSelectedMonth(e.target.value)}
+          />
+
+          <button
+            className="icon-btn"
+            onClick={() => {
+              const [y, m] = selectedMonth
+                .split("-")
+                .map(Number);
+
+              const d = new Date(y, m, 1);
+
+              setSelectedMonth(
+                `${d.getFullYear()}-${String(
+                  d.getMonth() + 1
+                ).padStart(2, "0")}`
+              );
+            }}
+          >
+            <ChevronRight size={21} />
+          </button>
+        </div>
+
+        <div className="calendar">
+          {[
+            "P",
+            "O",
+            "T",
+            "C",
+            "P",
+            "S",
+            "Sv",
+          ].map((day) => (
+            <div className="calendar-head" key={day}>
+              {day}
+            </div>
+          ))}
+
+          {cells}
+        </div>
+
+        <div className="legend">
+          <span className="legend-red" />
+          Nedēļas nogale
+        </div>
+      </div>
+    );
+  }
+
+  function renderInfo() {
+    const categories = [
+      ...new Set(data.info.map((item) => item.category)),
+    ];
+
+    return (
+      <>
+        <div className="card">
+          <div className="section-title">
+            <div>
+              <h2>Informācija</h2>
+              <p>
+                Tava grāmatvedības informācijas datubāze.
+                Informāciju vari papildināt un labot.
+              </p>
+            </div>
+            <Info size={28} />
+          </div>
+
+          <div className="info-form">
+            <div className="form-grid">
+              <div>
+                <label>Kategorija</label>
+                <input
+                  type="text"
+                  placeholder="Piemēram, PVN"
+                  value={infoCategory}
+                  onChange={(e) =>
+                    setInfoCategory(e.target.value)
+                  }
+                />
+              </div>
+
+              <div>
+                <label>Nosaukums</label>
+                <input
+                  type="text"
+                  placeholder="Piemēram, PVN standarta likme"
+                  value={infoTitle}
+                  onChange={(e) =>
+                    setInfoTitle(e.target.value)
+                  }
+                />
+              </div>
+            </div>
+
+            <div style={{ marginTop: 16 }}>
+              <label>Informācija</label>
+              <textarea
+                value={infoValue}
+                onChange={(e) =>
+                  setInfoValue(e.target.value)
+                }
+                placeholder="Ievadi informāciju..."
+              />
+            </div>
+
+            <div className="form-grid">
+              <div>
+                <label>Gads</label>
+                <input
+                  type="text"
+                  value={infoYear}
+                  onChange={(e) =>
+                    setInfoYear(e.target.value)
+                  }
+                />
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "flex-end",
+                  gap: 10,
+                }}
+              >
+                <button
+                  className="primary-btn"
+                  onClick={saveInfo}
+                >
+                  {editingInfoId ? (
+                    <>
+                      <Save size={19} />
+                      Saglabāt izmaiņas
+                    </>
+                  ) : (
+                    <>
+                      <Plus size={19} />
+                      Pievienot informāciju
+                    </>
+                  )}
+                </button>
+
+                {editingInfoId && (
+                  <button
+                    className="secondary-btn"
+                    onClick={resetInfoForm}
+                  >
+                    <X size={18} />
+                    Atcelt
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {categories.map((category) => (
+          <div className="card" key={category}>
+            <div className="section-title">
+              <div>
+                <h2>{category}</h2>
+              </div>
+              <FileText size={25} />
+            </div>
+
+            <div className="info-grid">
+              {data.info
+                .filter((item) => item.category === category)
+                .map((item) => (
+                  <div className="info-card" key={item.id}>
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        gap: 10,
+                      }}
+                    >
+                      <strong>{item.title}</strong>
+
+                      {item.year && (
+                        <span>{item.year}</span>
+                      )}
+                    </div>
+
+                    <span>{item.value}</span>
+
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: 7,
+                        marginTop: "auto",
+                      }}
+                    >
+                      <button
+                        className="secondary-btn"
+                        onClick={() => editInfo(item)}
+                      >
+                        Labot
+                      </button>
+
+                      <button
+                        className="danger-btn"
+                        onClick={() => deleteInfo(item.id)}
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </div>
+        ))}
+      </>
+    );
+  }
+
+  function renderAnnual() {
+    const tasks = getAnnualTasks(annualClientId);
+
+    const completed = tasks.filter((task) =>
+      isAnnualDone(annualClientId, task.id)
+    ).length;
+
+    const progress = tasks.length
+      ? Math.round((completed / tasks.length) * 100)
+      : 0;
+
+    const groups = [
+      ...new Set(tasks.map((task) => task.group)),
+    ];
+
+    return (
+      <div className="card">
+        <div className="section-title">
+          <div>
+            <h2>Gada pārskats</h2>
+            <p>
+              Profesionāls kontrolsaraksts katram klientam.
+            </p>
+          </div>
+          <ClipboardCheck size={28} />
+        </div>
+
+        <label>Klients</label>
+
+        <select
+          value={annualClientId}
+          onChange={(e) => setAnnualClientId(e.target.value)}
+        >
+          {data.clients.map((client) => (
+            <option key={client.id} value={client.id}>
+              {client.name}
+            </option>
+          ))}
+        </select>
+
+        <div
+          style={{
+            marginTop: 22,
+            padding: 20,
+            borderRadius: 20,
+            background: "#edf8f1",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              marginBottom: 10,
+            }}
+          >
+            <strong>
+              Izpildīts: {completed} / {tasks.length}
+            </strong>
+
+            <strong>{progress}%</strong>
+          </div>
+
+          <div
+            style={{
+              height: 10,
+              background: "#d7e8dc",
+              borderRadius: 99,
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                width: `${progress}%`,
+                height: "100%",
+                background: "#55ad79",
+                borderRadius: 99,
+                transition: "width .2s",
+              }}
+            />
+          </div>
+        </div>
+
+        <div className="annual-list">
+          {groups.map((group) => (
+            <div className="annual-group" key={group}>
+              <h3>{group}</h3>
+
+              <div className="checklist">
+                {tasks
+                  .filter((task) => task.group === group)
+                  .map((task) => (
+                    <label
+                      className="check-row"
+                      key={task.id}
+                    >
                       <input
                         type="checkbox"
-                        checked={!!done}
-                        onChange={() => toggle(client.id, report)}
+                        checked={isAnnualDone(
+                          annualClientId,
+                          task.id
+                        )}
+                        onChange={() =>
+                          toggleAnnualTask(
+                            annualClientId,
+                            task.id
+                          )
+                        }
                       />
-                      <span>{report}</span>
-                      {done && <Check size={18} />}
+
+                      <span>{task.text}</span>
+
+                      {isAnnualDone(
+                        annualClientId,
+                        task.id
+                      ) && <Check size={19} />}
+
+                      {task.custom && (
+                        <button
+                          type="button"
+                          className="danger-btn"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            deleteAnnualTask(task.id);
+                          }}
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      )}
                     </label>
-                  );
-                })
-              )}
+                  ))}
+              </div>
             </div>
+          ))}
+        </div>
+
+        <div className="notes-box">
+          <h3>Pievienot klientam savu uzdevumu</h3>
+
+          <div className="form-grid">
+            <div>
+              <label>Grupa</label>
+              <input
+                type="text"
+                value={newAnnualGroup}
+                onChange={(e) =>
+                  setNewAnnualGroup(e.target.value)
+                }
+              />
+            </div>
+
+            <div>
+              <label>Uzdevums</label>
+              <input
+                type="text"
+                placeholder="Piemēram, pārbaudīt aizdevuma līgumu"
+                value={newAnnualTask}
+                onChange={(e) =>
+                  setNewAnnualTask(e.target.value)
+                }
+              />
+            </div>
+          </div>
+
+          <button
+            className="secondary-btn"
+            style={{ marginTop: 15 }}
+            onClick={addAnnualTask}
+          >
+            <Plus size={18} />
+            Pievienot uzdevumu
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  function renderDeadlines() {
+    return (
+      <>
+        <div className="card">
+          <div className="section-title">
+            <div>
+              <h2>Termiņi un atskaites</h2>
+              <p>
+                Pievieno jebkuru atskaiti, kuru vēlies
+                pārvaldīt.
+              </p>
+            </div>
+            <FileText size={28} />
+          </div>
+
+          <div className="form-grid">
+            <div>
+              <label>Atskaites nosaukums</label>
+              <input
+                type="text"
+                placeholder="Piemēram, Statistikas pārskats"
+                value={newReportName}
+                onChange={(e) =>
+                  setNewReportName(e.target.value)
+                }
+              />
+            </div>
+
+            <div>
+              <label>Periods</label>
+
+              <select
+                value={newReportPeriod}
+                onChange={(e) =>
+                  setNewReportPeriod(e.target.value)
+                }
+              >
+                <option value="monthly">
+                  Katru mēnesi
+                </option>
+                <option value="quarterly">
+                  Reizi ceturksnī
+                </option>
+                <option value="yearly">
+                  Reizi gadā
+                </option>
+              </select>
+            </div>
+          </div>
+
+          <div
+            className="form-grid"
+            style={{ marginTop: 16 }}
+          >
+            <div>
+              <label>Termiņa diena</label>
+
+              <input
+                type="text"
+                inputMode="numeric"
+                value={newReportDueDay}
+                onChange={(e) =>
+                  setNewReportDueDay(e.target.value)
+                }
+              />
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                alignItems: "flex-end",
+              }}
+            >
+              <button
+                className="primary-btn"
+                onClick={addReportType}
+              >
+                <Plus size={19} />
+                Pievienot atskaiti
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="section-title">
+            <div>
+              <h2>Atskaites</h2>
+              <p>
+                Šeit redzamas visas atskaites, ko esi
+                pievienojusi.
+              </p>
+            </div>
+            <Settings2 size={27} />
+          </div>
+
+          <div className="report-list">
+            {data.reportTypes.map((report) => (
+              <div
+                className="report-card"
+                key={report.id}
+              >
+                <div className="report-card-header">
+                  <div>
+                    <strong>{report.name}</strong>
+                    <span>
+                      {periodLabel(report.period)} · līdz
+                      {` ${report.dueDay}. datumam`}
+                    </span>
+                  </div>
+
+                  {!report.builtIn && (
+                    <button
+                      className="danger-btn"
+                      onClick={() =>
+                        deleteReportType(report.id)
+                      }
+                    >
+                      <Trash2 size={16} />
+                      Dzēst
+                    </button>
+                  )}
+                </div>
+
+                <div className="report-client-list">
+                  {data.clients.map((client) => {
+                    if (!reportRelevant(client, report)) {
+                      return null;
+                    }
+
+                    const status = getReportStatus(
+                      report.id,
+                      client.id
+                    );
+
+                    return (
+                      <div
+                        className="report-client-row"
+                        key={client.id}
+                      >
+                        <strong>{client.name}</strong>
+
+                        <label>
+                          <input
+                            type="checkbox"
+                            checked={status.submitted}
+                            onChange={() =>
+                              toggleReportStatus(
+                                report.id,
+                                client.id,
+                                "submitted"
+                              )
+                            }
+                          />
+                          Iesniegta
+                        </label>
+
+                        <label>
+                          <input
+                            type="checkbox"
+                            checked={status.taxSent}
+                            onChange={() =>
+                              toggleReportStatus(
+                                report.id,
+                                client.id,
+                                "taxSent"
+                              )
+                            }
+                          />
+                          Nodokļa informācija
+                        </label>
+
+                        {status.submitted && (
+                          <CheckCircle2 size={20} />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  function renderPage() {
+    if (page === "work") return renderWork();
+    if (page === "table") return renderTable();
+    if (page === "calendar") return renderCalendar();
+    if (page === "info") return renderInfo();
+    if (page === "annual") return renderAnnual();
+    if (page === "deadlines") return renderDeadlines();
+
+    return null;
+  }
+
+  const navItems = [
+    {
+      id: "work",
+      label: "Darba laiks",
+      icon: Clock3,
+    },
+    {
+      id: "table",
+      label: "Atskaite",
+      icon: ClipboardCheck,
+    },
+    {
+      id: "calendar",
+      label: "Kalendārs",
+      icon: CalendarDays,
+    },
+    {
+      id: "info",
+      label: "Informācija",
+      icon: Info,
+    },
+    {
+      id: "annual",
+      label: "Gada pārskats",
+      icon: FileText,
+    },
+    {
+      id: "deadlines",
+      label: "Termiņi",
+      icon: CheckCircle2,
+    },
+  ];
+
+  return (
+    <div className="app">
+      <header className="topbar">
+        <h1>Grāmatvedības darba pārvaldība</h1>
+
+        <p>
+          Darba laiks, klienti, atskaites, termiņi un
+          grāmatvedības informācija vienuviet.
+        </p>
+      </header>
+
+      <nav className="nav">
+        {navItems.map((item) => {
+          const Icon = item.icon;
+
+          return (
+            <button
+              key={item.id}
+              className={`nav-btn ${
+                page === item.id ? "active" : ""
+              }`}
+              onClick={() => setPage(item.id)}
+            >
+              <Icon />
+              <span>{item.label}</span>
+            </button>
           );
         })}
-      </div>
-    </section>
+      </nav>
+
+      <main className="content">{renderPage()}</main>
+    </div>
   );
 }
 
-createRoot(document.getElementById("root")).render(<App />);
+createRoot(document.getElementById("root")).render(
+  <App />
+);
